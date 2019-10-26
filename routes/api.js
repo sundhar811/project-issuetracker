@@ -8,16 +8,22 @@
 
 'use strict';
 
-var expect = require('chai').expect;
-var MongoClient = require('mongodb');
-var ObjectId = require('mongodb').ObjectID;
+const expect = require('chai').expect;
+const MongoClient = require('mongodb');
+const ObjectId = require('mongodb').ObjectID;
 
-const CONNECTION_STRING = process.env.DB; //MongoClient.connect(CONNECTION_STRING, function(err, db) {});
+let dbConnection;
+
+function getDBConnection() {
+  if (!dbConnection) {
+    dbConnection = MongoClient.connect(process.env.DB, { useNewUrlParser: true });
+  }
+  return dbConnection;
+}
 
 module.exports = function (app) {
 
   app.route('/api/issues/:project')
-  
     .get(function (req, res){
       var project = req.params.project;
       
