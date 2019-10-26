@@ -16,7 +16,7 @@ let dbConnection;
 
 function getDBConnection() {
   if (!dbConnection) {
-    dbConnection = MongoClient.connect(process.env.DB, { useNewUrlParser: true });
+    dbConnection = MongoClient.connect(process.env.DB, { useNewUrlParser: true, useUnifiedTopology: true });
   }
   return dbConnection;
 }
@@ -25,8 +25,19 @@ module.exports = function (app) {
 
   app.route('/api/issues/:project')
     .get(function (req, res){
-      var project = req.params.project;
-      
+      let project = req.params.project;
+      let { query } = req;
+      if (query.open) {
+        if (query.open === 'true') query.open = true;
+        if (query.open === 'false') query.open = false;
+      }
+      getDBConnection().then(client => {
+        let db = client.db('test');
+        db.collection(project).find(query).toArray()
+          .then(result => res.send(result))
+          .catch(err => Promise.reject(err));
+      })
+      .catch(err => res.send(err));
     })
     
     .post(function (req, res){
@@ -52,12 +63,14 @@ module.exports = function (app) {
         })
           .then(result => res.json(result.ops[0]))
           .catch(err => Promise.reject(err));
-      });
+      })
+      .catch(err => res.send(err));
     })
     
     .put(function (req, res){
       let project = req.params.project;
-      let { _id } = req.body;
+      console.log(req.body)
+      let { _id, open } = req.body;
       if (!_id) {
         res.send('missing input: _id');
       }
@@ -66,6 +79,9 @@ module.exports = function (app) {
         if (Object.prototype.hasOwnProperty.call(req.body, key) && req.body[key]) {
           updatedFields[key] = req.body[key]
         }
+      }
+      if (open) {
+        updatedFields.open = false;
       }
       delete updatedFields._id;
       if (!Object.keys(updatedFields).length) res.send('no updated field sent');
@@ -81,7 +97,8 @@ module.exports = function (app) {
             }
           })
           .catch(err => Promise.reject(err));
-      });
+      })
+      .catch(err => res.send(err));
     })
     
     .delete(function (req, res){
